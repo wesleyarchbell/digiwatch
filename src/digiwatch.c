@@ -14,69 +14,92 @@ PBL_APP_INFO(MY_UUID,
 Window window;
 
 TextLayer text_time_layer;
+TextLayer text_date_layer;
 
 int dx1 = 0;
 int dy1 = 0;
 
+int dx2 = 22;
+int dy2 = 50;
+
 int shiftDown = 1;
 int shiftRight = 1;
 
+//set the speed of the bouncing text
+int speed = 2;
 
 void handle_init(AppContextRef ctx) {
   (void)ctx;
 
-  window_init(&window, "Simplicity");
+  window_init(&window, "DigiWatch");
   window_stack_push(&window, true /* Animated */);
   window_set_background_color(&window, GColorBlack);
 
   resource_init_current_app(&APP_RESOURCES);
 
+  //init time layer
   text_layer_init(&text_time_layer, window.layer.frame);
   text_layer_set_text_color(&text_time_layer, GColorWhite);
   text_layer_set_background_color(&text_time_layer, GColorClear);
-  layer_set_frame(&text_time_layer.layer, GRect(dx1, dy1, 144-7, 168-92));
-  text_layer_set_font(&text_time_layer, fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_ROBOTO_BOLD_SUBSET_49)));
+  layer_set_frame(&text_time_layer.layer, GRect(dx1, dy1, 144-9, 168-92));
+  text_layer_set_font(&text_time_layer, fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_OFFSIDE_49)));
   layer_add_child(&window.layer, &text_time_layer.layer);
+
+  //init date layer
+  text_layer_init(&text_date_layer, window.layer.frame);
+  text_layer_set_text_color(&text_date_layer, GColorWhite);
+  text_layer_set_background_color(&text_date_layer, GColorClear);
+  layer_set_frame(&text_date_layer.layer, GRect(dx2, dy2, 144-1, 168-68));
+  text_layer_set_font(&text_date_layer, fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_OFFSIDE_21)));
+  layer_add_child(&window.layer, &text_date_layer.layer);
 
 }
 
-void handle_minute_tick(AppContextRef ctx, PebbleTickEvent *t) {
-
-  (void)ctx;
-
-  //calculate next position
-  if (dy1 == 115) {
+void animateDateTime() {
+  //check position
+  if (dy1 >= 91) {
     shiftDown = 0;
   }
-  if (dy1 == 0) {
+  if (dy1 <= 0) {
     shiftDown = 1;
   }
-  int dx2 = 144-7;
-  if ((dx1+dx2) == 151) {
+  int xx = 144-9;
+  if ((dx1+xx) >= 155) {
      shiftRight = 0;
   }
-  if (dx1 == 0) {
+  if (dx1 <= -1) {
      shiftRight = 1;
   }
 
-  //move the time
+  //calculate next x,y
   if (shiftDown == 1) {
-     dy1 = dy1 + 1;
+     dy1 += speed;
+     dy2 += speed;
   } else {
-     dy1 = dy1 - 1;
+     dy1 -= speed;
+     dy2 -= speed;
   }
-
   if (shiftRight == 1) {
-    dx1 = dx1 + 1;
+    dx1 += speed;
+    dx2 += speed;
   } else {
-    dx1 = dx1 - 1;
+    dx1 -= speed;
+    dx2 -= speed;
   }
 
-  layer_set_frame(&text_time_layer.layer, GRect(dx1, dy1, 144-7, 168-92));
+  layer_set_frame(&text_time_layer.layer, GRect(dx1, dy1, 144-9, 168-92));
+  layer_set_frame(&text_date_layer.layer, GRect(dx2, dy2, 144-9, 168-68));
+}
 
-  // Need to be static because they're used by the system later.
+
+void handle_minute_tick(AppContextRef ctx, PebbleTickEvent *t) {
+  (void)ctx;
+
   static char time_text[] = "00:00";
   static char date_text[] = "Xxxxxxxxx 00";
+
+  string_format_time(date_text, sizeof(date_text), "%B %e", t->tick_time);
+  text_layer_set_text(&text_date_layer, date_text);
 
   char *time_format;
   if (clock_is_24h_style()) {
@@ -84,7 +107,6 @@ void handle_minute_tick(AppContextRef ctx, PebbleTickEvent *t) {
   } else {
     time_format = "%I:%M";
   }
-
   string_format_time(time_text, sizeof(time_text), time_format, t->tick_time);
 
   // Kludge to handle lack of non-padded hour format string
@@ -95,6 +117,7 @@ void handle_minute_tick(AppContextRef ctx, PebbleTickEvent *t) {
 
   text_layer_set_text(&text_time_layer, time_text);
 
+  animateDateTime();
 }
 
 
